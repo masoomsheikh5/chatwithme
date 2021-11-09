@@ -9,59 +9,42 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
 
-class Chat extends StatefulWidget {
-  Chat({Key? key}) : super(key: key);
+import 'main.dart';
 
+class Chat extends StatefulWidget {
+  final String? chatId;
+  final String? emailId;
+  Chat({Key? key,required this.chatId,required this.emailId}) : super(key: key);
   @override
   _ChatState createState() => _ChatState();
 }
 
 class _ChatState extends State<Chat> {
-  late DatabaseReference _counterRef;
+  
   late DatabaseReference _messagesRef;
-  late StreamSubscription<Event> _counterSubscription;
+  late DatabaseReference _messagesRef2;
   late StreamSubscription<Event> _messagesSubscription;
-  String _kTestKey = 'Hello';
-  String _kTestValue = 'world!';
-  DatabaseError? _error;
-  int _counter = 0;
   List _chats = [];
+
   bool _anchorToBottom = false;
   ScrollController _controller = ScrollController();
 
   final TextEditingController _textController = TextEditingController();
-
+  String lkId=store.state.emailModel!.email.toString().replaceAll("@gmail.com", "");  
   @override
   void initState() {
-    super.initState();
-    // Demonstrates configuring to the database using a file
-    _counterRef = FirebaseDatabase.instance.reference().child('counter');
-    // Demonstrates configuring the database directly
-    final FirebaseDatabase database = FirebaseDatabase();
-    _messagesRef = database.reference().child('messages');
-    database.reference().child('counter').get().then((DataSnapshot? snapshot) {
-      print(
-          'Connected to directly configured database and read ${snapshot!.value}');
-    });
-
+    super.initState();   
+    print(["ChaterId",widget.emailId]) ;
+    print(["Myid",lkId]) ;
+    _messagesRef = database.reference().child('users').child(store.state.emailModel!.localId.toString()).child('messages').child(widget.chatId.toString());
+    _messagesRef2 = database.reference().child('users').child(widget.chatId.toString()).child('messages').child(store.state.emailModel!.localId.toString());
     database.setLoggingEnabled(true);
 
     if (!kIsWeb) {
       database.setPersistenceEnabled(true);
       database.setPersistenceCacheSizeBytes(10000000);
-      _counterRef.keepSynced(true);
     }
-    _counterSubscription = _counterRef.onValue.listen((Event event) {
-      setState(() {
-        _error = null;
-        _counter = event.snapshot.value ?? 0;
-      });
-    }, onError: (Object o) {
-      final DatabaseError error = o as DatabaseError;
-      setState(() {
-        _error = error;
-      });
-    });
+ 
     _messagesSubscription =
         _messagesRef.limitToLast(20).onChildAdded.listen((Event event) {
       print('Child added: ${event.snapshot.value}');
@@ -79,45 +62,30 @@ class _ChatState extends State<Chat> {
 
   @override
   void dispose() {
-    super.dispose();
+    super.dispose();    
     _messagesSubscription.cancel();
-    _counterSubscription.cancel();
   }
 
   Future<void> _sendMSG() async {
-    await _counterRef.set(ServerValue.increment(1));
-
     await _messagesRef.push().set(<String, Map>{
-      "masoom": {
+      lkId: {
         "message": "${_textController.text.trim()}",
         "time": "${DateTime.now()}",
       },
     });
+    await _messagesRef2.push().set(<String, Map>{
+      lkId: {
+        "message": "${_textController.text.trim()}",
+        "time": "${DateTime.now()}",
+      },
+    });
+
     _textController.clear();
     // FocusManager.instance.primaryFocus!.unfocus();
     takeToBottom();
   }
 
-  Future<void> _incrementAsTransaction() async {
-    // Increment counter in transaction.
-    final TransactionResult transactionResult =
-        await _counterRef.runTransaction((MutableData mutableData) {
-      mutableData.value = (mutableData.value ?? 0) + 1;
-      return mutableData;
-    });
-
-    if (transactionResult.committed) {
-      await _messagesRef.push().set(<String, String>{
-        _kTestKey: '$_kTestValue ${transactionResult.dataSnapshot?.value}'
-      });
-    } else {
-      print('Transaction not committed.');
-      if (transactionResult.error != null) {
-        print(transactionResult.error!.message);
-      }
-    }
-  }
-
+ 
   takeToBottom() {
     SchedulerBinding.instance!.addPostFrameCallback((_) async {
       print("calling ${_controller.position.maxScrollExtent}");
@@ -167,7 +135,7 @@ class _ChatState extends State<Chat> {
             ],
           ),
         ),
-        title: Text("WhatsApp"),
+        title: Text(widget.emailId.toString()),
         // centerTitle: true,
       ),
       body: Container(
@@ -181,123 +149,130 @@ class _ChatState extends State<Chat> {
               Container(
                 height: MediaQuery.of(context).size.height * 8 / 10,
                 // padding: const EdgeInsets.only(bottom: 30, top: 20),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    FirebaseAnimatedList(
-                      controller: _controller,
-                      key: ValueKey<bool>(false),
-                      // reverse: true,
-                      shrinkWrap: true,
-                      query: _messagesRef,
-                      itemBuilder: (BuildContext context, DataSnapshot snapshot,
-                          Animation<double> animation, int index) {
-                        print(["snapshot.value['masoom']", snapshot.value]);
-                        DateTime time = snapshot.value['aaryan'] == null
-                            ? DateTime.now()
-                            : DateTime.parse(
-                                snapshot.value['masoom']['time'].toString());
-                        String date = "${DateFormat('hh:mm a').format(time)}";
-                        // DateTime time = snapshot.value['aaryan'] == null
-                        //     ? DateTime.now()
-                        //     : DateTime.parse(
-                        //         snapshot.value['masoom']['time'].toString());
-                        // String date = "${DateFormat('hh:mm a').format(time)}";
-                        return SizeTransition(
-                          sizeFactor: animation,
-                          child: InkWell(
-                            onLongPress: () =>
-                                _messagesRef.child(snapshot.key!).remove(),
-                            child: Column(
-                                verticalDirection: VerticalDirection.up,
-                                children: [
-                                  !snapshot.value.containsKey("aaryan")
-                                      ? Align(
-                                          alignment: Alignment.topRight,
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.end,
-                                            children: [
-                                              Card(
-                                                child: Container(
-                                                    padding:
-                                                        EdgeInsets.symmetric(
-                                                            horizontal: 20,
-                                                            vertical: 6),
-                                                    margin: EdgeInsets.only(
-                                                        right: 20),
-                                                    child: Column(
-                                                      // mainAxisAlignment:
-                                                      //     MainAxisAlignment.center,
-                                                      children: [
-                                                        Text(
-                                                          "${snapshot.value['masoom']['message']}",
-                                                          style: TextStyle(
-                                                              fontSize: 20),
-                                                        ),
-                                                      ],
-                                                    )),
-                                              ),
-                                              // Text(
-                                              //   date,
-                                              //   style: TextStyle(fontSize: 10),
-                                              // )
-                                            ],
-                                          ),
-                                        )
-                                      : Align(
-                                          alignment: Alignment.topLeft,
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Card(
-                                                child: Container(
-                                                    padding:
-                                                        EdgeInsets.symmetric(
-                                                            horizontal: 20,
-                                                            vertical: 6),
-                                                    margin: EdgeInsets.only(
-                                                        right: 20),
-                                                    child: Column(
-                                                      // mainAxisAlignment:
-                                                      //     MainAxisAlignment.center,
-                                                      children: [
-                                                        Text(
-                                                          "${snapshot.value['aaryan']['message']}",
-                                                          style: TextStyle(
-                                                              fontSize: 20),
-                                                        ),
-                                                      ],
-                                                    )),
-                                              ),
-                                              Text(
-                                                snapshot.value['aaryan']
-                                                    ['time'],
-                                                style: TextStyle(fontSize: 10),
-                                              )
-                                            ],
-                                          ),
-                                          // Card(
-                                          //   child: Container(
-                                          //       padding: EdgeInsets.symmetric(
-                                          //           horizontal: 20, vertical: 6),
-                                          //       margin: EdgeInsets.only(
-                                          //           right: 20, left: 20),
-                                          //       // color: Colors.red,
+                child: SingleChildScrollView(
+                  reverse: true,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      FirebaseAnimatedList(
+                        physics: NeverScrollableScrollPhysics(),
+                        scrollDirection: Axis.vertical,
+                        controller: _controller,
+                        key: ValueKey<bool>(false),
+                        // reverse: true,
+                        shrinkWrap: true,
+                        query: _messagesRef,
+                        itemBuilder: (BuildContext context, DataSnapshot snapshot,
+                            Animation<double> animation, int index) {
+                          // print(["snapshot.value['aaryan']", snapshot.value]);
+                          DateTime time = snapshot.value[lkId] == null
+                              ? DateTime.parse(
+                                  snapshot.value[widget.emailId]['time'].toString())
+                              : DateTime.parse(
+                                  snapshot.value[lkId]['time'].toString());
+                          String date = "${DateFormat('hh:mm a').format(time)}";
+                          // DateTime time = snapshot.value['masoom'] == null
+                          //     ? DateTime.now()
+                          //     : DateTime.parse(
+                          //         snapshot.value['aaryan']['time'].toString());
+                          // String date = "${DateFormat('hh:mm a').format(time)}";
+                          return SizeTransition(
+                            sizeFactor: animation,
+                            child: InkWell(
+                              onLongPress: () =>
+                                  _messagesRef.child(snapshot.key!).remove(),
+                              child: Column(
+                                  verticalDirection: VerticalDirection.up,
+                                  children: [
+                                    !snapshot.value.containsKey(widget.emailId.toString())
+                                        ? Align(
+                                            alignment: Alignment.topRight,
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              children: [
+                                                Card(
+                                                     color: Color(0xffdcf8c6),
 
-                                          //       child: Text(
-                                          //         "${snapshot.value['aarya']}",
-                                          //         style: TextStyle(fontSize: 20),
-                                          //       )),
-                                          // )
-                                        )
-                                ]),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+                                                  child: Container(
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                              horizontal: 20,
+                                                              vertical: 6),
+                                                      margin: EdgeInsets.only(
+                                                          right: 20),
+                                                      child: Column(
+                                                        // mainAxisAlignment:
+                                                        //     MainAxisAlignment.center,
+                                                        children: [
+                                                          Text(
+                                                            "${snapshot.value[lkId]['message']}",
+                                                            style: TextStyle(
+                                                                fontSize: 20),
+                                                          ),
+                                                        ],
+                                                      )),
+                                                ),
+                                                Text(
+                                                  date,
+                                                  style: TextStyle(fontSize: 10),
+                                                )
+                                              ],
+                                            ),
+                                          )
+                                        : Align(
+                                            alignment: Alignment.topLeft,
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Card(
+                                                  child: Container(
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                              horizontal: 20,
+                                                              vertical: 6),
+                                                      margin: EdgeInsets.only(
+                                                          right: 20),
+                                                      child: Column(
+                                                        // mainAxisAlignment:                                                        
+                                                        //     MainAxisAlignment.center,
+                                                        children: [
+                                                          Text(
+                                                            "${snapshot.value[widget.emailId]['message']}",
+                                                            style: TextStyle(
+                                                                fontSize: 20),
+                                                          ),
+                                                        ],
+                                                      )),
+                                                ),
+                                                Text(
+                                                  date,
+                                                  style: TextStyle(fontSize: 10),
+                                                )
+                                              ],
+                                            ),
+                                            // Card(
+                                            //   child: Container(
+                                            //       padding: EdgeInsets.symmetric(
+                                            //           horizontal: 20, vertical: 6),
+                                            //       margin: EdgeInsets.only(
+                                            //           right: 20, left: 20),
+                                            //       // color: Colors.red,
+                  
+                                            //       child: Text(
+                                            //         "${snapshot.value['aaryan']}",
+                                            //         style: TextStyle(fontSize: 20),
+                                            //       )),
+                                            // )
+                                          )
+                                  ]),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
               sushuisa(context),
@@ -378,7 +353,7 @@ class _ChatState extends State<Chat> {
             width: 30,
           ),
           Text(
-            "masoom",
+            lkId,
             style: TextStyle(
                 color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
           ),

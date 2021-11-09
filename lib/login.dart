@@ -1,7 +1,11 @@
 import 'package:chatwithme/chatRoom.dart';
+import 'package:chatwithme/main.dart';
 import 'package:chatwithme/signup.dart';
+import 'package:chatwithme/store/appState.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_redux/flutter_redux.dart';
 import 'package:flutter/cupertino.dart';
+import '/store/actions.dart' as action;
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -91,18 +95,35 @@ class _LoginState extends State<Login> {
                           ),
                           ElevatedButton(
                               onPressed: () {
-                                Navigator.push(
-                                    context,
-                                    CupertinoPageRoute(
-                                        builder: (context) => Chatroom()));
+                                 if (_formKey.currentState!.validate()) {
+                                store.dispatch(action.loginUser(
+                                context,
+                                email.text.trim(),
+                                 Pass.text.trim()));
+                                 }
+                              
                               },
-                              child: Text("Login")),
+                              
+                              child:  Text(
+                          "Sign In",
+                          style: TextStyle(fontSize: 20, color: Colors.white),
+                        )
+                     
+                
+                              ),
+
                           TextButton(
                               onPressed: () {
-                                Navigator.push(
-                                    context,
-                                    CupertinoPageRoute(
-                                        builder: (context) => Signup()));
+                                   if (_formKey.currentState!.validate()) {
+                                store.dispatch(action.ragisterUser(
+                                context,
+                                email.text.trim(),
+                                 Pass.text.trim()));
+                                 }
+                                // Navigator.push(
+                                //     context,
+                                //     CupertinoPageRoute(
+                                //         builder: (context) => Chatroom()));
                               },
                               child: Text("Sign up"))
                         ],
