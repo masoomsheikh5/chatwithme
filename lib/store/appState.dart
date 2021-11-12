@@ -4,23 +4,22 @@ import 'package:flutter/material.dart';
 @immutable
 class AppState {
   final EmailModel? emailModel;
-  
-  AppState(
-     { @required this.emailModel}
 
-  );
+  AppState({@required this.emailModel});
 
   factory AppState.initial() => AppState(
+        emailModel: EmailModel(
+            email: '',
+            localId: '',
+            refreshToken: '',
+            expiresIn: '',
+            idToken: '',
+            kind: ''),
+      );
 
-      emailModel: EmailModel(email: '', localId: '', refreshToken: '', expiresIn: '', idToken: '', kind: ''),
-
-  );
-
-  AppState copyWith( ) {
+  AppState copyWith({EmailModel? emailModel}) {
     return AppState(
       emailModel: emailModel ?? this.emailModel,
-
     );
   }
 }
-

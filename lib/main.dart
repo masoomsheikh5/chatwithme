@@ -1,6 +1,7 @@
 import 'package:chatwithme/list.dart';
 import 'package:chatwithme/login.dart';
 import 'package:chatwithme/store/appState.dart';
+import 'package:chatwithme/store/flash.dart';
 import 'package:chatwithme/store/reducer.dart';
 import 'package:chatwithme/updateprofile.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -39,7 +40,7 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.blue,
         ),
-        home: Login(),
+        home: FlashScereen(),
       ),
     );
   }

@@ -340,7 +340,7 @@ class _ChatState extends State<Chat> {
               child: IconButton(
                   onPressed: () async {
                     store.dispatch(action.msgnoti(
-                        widget.fcmToken, lkId, _textController.toString()));
+                        widget.fcmToken, lkId, _textController.text));
                     _sendMSG();
                   },
                   icon: Icon(

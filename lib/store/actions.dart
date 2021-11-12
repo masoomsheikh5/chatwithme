@@ -38,7 +38,7 @@ ThunkAction<AppState> loginUser(context, fcmToken, email, pass) {
           .child("fcmToken")
           .set(fcmTtoken);
       store.dispatch(storeUser(context, response.body));
-      store.dispatch(EmailModel.fromJson(newResponse));
+      // store.dispatch(EmailModel.fromJson(newResponse));
       Future.delayed(Duration(seconds: 1), () {
         // store.dispatch(fetchUserProfile(context));
       });
@@ -63,7 +63,7 @@ ThunkAction<AppState> msgnoti(fcmToken, msgBody, msgTitle) {
       "to": fcmToken,
       "notification": {
         "title": msgTitle,
-        "body": msgBody,
+        "body": "$msgBody",
         "mutable_content": true,
         "sound": "Tri-tone"
       },
@@ -72,6 +72,7 @@ ThunkAction<AppState> msgnoti(fcmToken, msgBody, msgTitle) {
       //   "dl": "<deeplink action on tap of notification>"
       // }
     });
+    print(["msgbody", msgBody]);
     var response = await http.post(url, body: msg, headers: headers);
     print(["message", response.body]);
   };
@@ -91,7 +92,7 @@ ThunkAction<AppState> ragisterUser(context, fcmToken, email, pass) {
     print(['local id', response.body]);
     if (response.statusCode == 200) {
       var newResponse = jsonDecode(response.body);
-      print(["newResponse", newResponse['localId']]);
+      print(["newResponse", newResponse]);
       final FirebaseDatabase database = FirebaseDatabase();
       var fcmTtoken = {"fcmToken": "$fcmToken"};
       database
@@ -107,7 +108,7 @@ ThunkAction<AppState> ragisterUser(context, fcmToken, email, pass) {
           .child("fcmToken")
           .set(fcmTtoken);
       store.dispatch(storeUser(context, response.body));
-      store.dispatch(EmailModel.fromJson(newResponse));
+      // store.dispatch(EmailModel.fromJson(newResponse));
       Future.delayed(Duration(seconds: 1), () {
         // store.dispatch(fetchUserProfile(context));
       });
@@ -124,6 +125,13 @@ ThunkAction<AppState> storeUser(context, res) {
   return (Store<AppState> store) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setString("userLoginToken", res);
+    String? userLoginToken = prefs.getString('userLoginToken');
+    // print(["userLoginToken", userLoginToken]);
+    var loginData = jsonDecode(userLoginToken!);
+    var loginData2 = jsonEncode(loginData);
+    var loginData3 = jsonDecode(loginData2);
+    store.dispatch(EmailModel.fromJson(loginData3));
+    print(["loginData", loginData3]);
   };
 }
 
