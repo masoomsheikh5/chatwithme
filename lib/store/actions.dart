@@ -128,10 +128,8 @@ ThunkAction<AppState> storeUser(context, res) {
     String? userLoginToken = prefs.getString('userLoginToken');
     // print(["userLoginToken", userLoginToken]);
     var loginData = jsonDecode(userLoginToken!);
-    var loginData2 = jsonEncode(loginData);
-    var loginData3 = jsonDecode(loginData2);
-    store.dispatch(EmailModel.fromJson(loginData3));
-    print(["loginData", loginData3]);
+    store.dispatch(EmailModel.fromJson(loginData));
+    print(["loginData", loginData]);
   };
 }
 
