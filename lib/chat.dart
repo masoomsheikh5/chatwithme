@@ -8,19 +8,25 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
+import '/store/actions.dart' as action;
 import 'main.dart';
 
 class Chat extends StatefulWidget {
   final String? chatId;
   final String? emailId;
-  Chat({Key? key,required this.chatId,required this.emailId}) : super(key: key);
+  final String? fcmToken;
+  Chat(
+      {Key? key,
+      required this.fcmToken,
+      required this.chatId,
+      required this.emailId})
+      : super(key: key);
   @override
   _ChatState createState() => _ChatState();
 }
 
 class _ChatState extends State<Chat> {
-  
   late DatabaseReference _messagesRef;
   late DatabaseReference _messagesRef2;
   late StreamSubscription<Event> _messagesSubscription;
@@ -30,21 +36,33 @@ class _ChatState extends State<Chat> {
   ScrollController _controller = ScrollController();
 
   final TextEditingController _textController = TextEditingController();
-  String lkId=store.state.emailModel!.email.toString().replaceAll("@gmail.com", "");  
+  String lkId =
+      store.state.emailModel!.email.toString().replaceAll("@gmail.com", "");
+
   @override
   void initState() {
-    super.initState();   
-    print(["ChaterId",widget.emailId]) ;
-    print(["Myid",lkId]) ;
-    _messagesRef = database.reference().child('users').child(store.state.emailModel!.localId.toString()).child('messages').child(widget.chatId.toString());
-    _messagesRef2 = database.reference().child('users').child(widget.chatId.toString()).child('messages').child(store.state.emailModel!.localId.toString());
+    super.initState();
+    print(["ChaterId", widget.emailId]);
+    print(["Myid", lkId]);
+    _messagesRef = database
+        .reference()
+        .child('users')
+        .child(store.state.emailModel!.localId.toString())
+        .child('messages')
+        .child(widget.chatId.toString());
+    _messagesRef2 = database
+        .reference()
+        .child('users')
+        .child(widget.chatId.toString())
+        .child('messages')
+        .child(store.state.emailModel!.localId.toString());
     database.setLoggingEnabled(true);
 
     if (!kIsWeb) {
       database.setPersistenceEnabled(true);
       database.setPersistenceCacheSizeBytes(10000000);
     }
- 
+
     _messagesSubscription =
         _messagesRef.limitToLast(20).onChildAdded.listen((Event event) {
       print('Child added: ${event.snapshot.value}');
@@ -62,7 +80,7 @@ class _ChatState extends State<Chat> {
 
   @override
   void dispose() {
-    super.dispose();    
+    super.dispose();
     _messagesSubscription.cancel();
   }
 
@@ -85,7 +103,6 @@ class _ChatState extends State<Chat> {
     takeToBottom();
   }
 
- 
   takeToBottom() {
     SchedulerBinding.instance!.addPostFrameCallback((_) async {
       print("calling ${_controller.position.maxScrollExtent}");
@@ -162,12 +179,15 @@ class _ChatState extends State<Chat> {
                         // reverse: true,
                         shrinkWrap: true,
                         query: _messagesRef,
-                        itemBuilder: (BuildContext context, DataSnapshot snapshot,
-                            Animation<double> animation, int index) {
+                        itemBuilder: (BuildContext context,
+                            DataSnapshot snapshot,
+                            Animation<double> animation,
+                            int index) {
                           // print(["snapshot.value['aaryan']", snapshot.value]);
                           DateTime time = snapshot.value[lkId] == null
-                              ? DateTime.parse(
-                                  snapshot.value[widget.emailId]['time'].toString())
+                              ? DateTime.parse(snapshot.value[widget.emailId]
+                                      ['time']
+                                  .toString())
                               : DateTime.parse(
                                   snapshot.value[lkId]['time'].toString());
                           String date = "${DateFormat('hh:mm a').format(time)}";
@@ -184,7 +204,8 @@ class _ChatState extends State<Chat> {
                               child: Column(
                                   verticalDirection: VerticalDirection.up,
                                   children: [
-                                    !snapshot.value.containsKey(widget.emailId.toString())
+                                    !snapshot.value.containsKey(
+                                            widget.emailId.toString())
                                         ? Align(
                                             alignment: Alignment.topRight,
                                             child: Column(
@@ -192,8 +213,7 @@ class _ChatState extends State<Chat> {
                                                   CrossAxisAlignment.end,
                                               children: [
                                                 Card(
-                                                     color: Color(0xffdcf8c6),
-
+                                                  color: Color(0xffdcf8c6),
                                                   child: Container(
                                                       padding:
                                                           EdgeInsets.symmetric(
@@ -215,7 +235,8 @@ class _ChatState extends State<Chat> {
                                                 ),
                                                 Text(
                                                   date,
-                                                  style: TextStyle(fontSize: 10),
+                                                  style:
+                                                      TextStyle(fontSize: 10),
                                                 )
                                               ],
                                             ),
@@ -235,7 +256,7 @@ class _ChatState extends State<Chat> {
                                                       margin: EdgeInsets.only(
                                                           right: 20),
                                                       child: Column(
-                                                        // mainAxisAlignment:                                                        
+                                                        // mainAxisAlignment:
                                                         //     MainAxisAlignment.center,
                                                         children: [
                                                           Text(
@@ -248,7 +269,8 @@ class _ChatState extends State<Chat> {
                                                 ),
                                                 Text(
                                                   date,
-                                                  style: TextStyle(fontSize: 10),
+                                                  style:
+                                                      TextStyle(fontSize: 10),
                                                 )
                                               ],
                                             ),
@@ -259,7 +281,7 @@ class _ChatState extends State<Chat> {
                                             //       margin: EdgeInsets.only(
                                             //           right: 20, left: 20),
                                             //       // color: Colors.red,
-                  
+
                                             //       child: Text(
                                             //         "${snapshot.value['aaryan']}",
                                             //         style: TextStyle(fontSize: 20),
@@ -316,7 +338,9 @@ class _ChatState extends State<Chat> {
               backgroundColor: Color(0xff00bfa5),
               radius: 25,
               child: IconButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    store.dispatch(action.msgnoti(
+                        widget.fcmToken, lkId, _textController.toString()));
                     _sendMSG();
                   },
                   icon: Icon(

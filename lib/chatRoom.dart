@@ -24,25 +24,28 @@ class _ChatroomState extends State<Chatroom> {
   late DatabaseReference _users;
   late StreamSubscription<Event> _userSubscription;
   List _userlist = [];
-  
+
   @override
   void initState() {
     super.initState();
-    _users= database.reference().child('users');
-if (!kIsWeb) {
+    _users = database.reference().child('users');
+    if (!kIsWeb) {
       database.setPersistenceEnabled(true);
       database.setPersistenceCacheSizeBytes(10000000);
     }
-   _userSubscription = _users.limitToLast(20).onChildAdded.listen((Event event) {      
+    _userSubscription =
+        _users.limitToLast(20).onChildAdded.listen((Event event) {
       _userlist.add(event.snapshot.value);
     });
-    print(["list",_userlist]);
+    print(["list", _userlist]);
   }
+
   @override
   void dispose() {
     super.dispose();
     _userSubscription.cancel();
   }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -75,44 +78,62 @@ if (!kIsWeb) {
         child: Container(
           width: MediaQuery.of(context).size.width,
           child: Column(
-            children: [   
-                  // ElevatedButton(
-                  // onPressed: () {
-                  //   store.dispatch(logout(context));
-                  // },
-                  // child: Text("logOut")),
-                  FirebaseAnimatedList(     
-                    query: _users,
-                    physics: NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemBuilder: (BuildContext context, DataSnapshot snapshot, Animation<double> animation, int index) { 
-                      return SizeTransition(
-                        sizeFactor: animation,
-                         child:
-                         snapshot.value['userData']['email'].toString()==store.state.emailModel!.email.toString()? SizedBox(width: 0,height: 0,):
-                          Padding(
-                           padding: const EdgeInsets.all(10.0),
-                           child: InkWell(
-                             onTap:(){
-                               Navigator.push(context, CupertinoPageRoute(builder: (context) => Chat(chatId: "${snapshot.value['userData']['localId']}", emailId: '${snapshot.value['userData']['email']}'.toString().replaceAll("@gmail.com", ""),)));
-                             },
-                             child: Container(
-                               color: Colors.amber[100],
-                               child: Column(
-                                 children: [                                   
-                                   ListTile(
-                                      title: Text(                                    
-                                      '${snapshot.value['userData']['email']}',)
-                                   ),
-                                 ],
-                               ),
-                             ),
-                           ),
-                         ),
-                      );
-                     }, 
-                  ),          
-                  ],
+            children: [
+              // ElevatedButton(
+              // onPressed: () {
+              //   store.dispatch(logout(context));
+              // },
+              // child: Text("logOut")),
+              FirebaseAnimatedList(
+                query: _users,
+                physics: NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                itemBuilder: (BuildContext context, DataSnapshot snapshot,
+                    Animation<double> animation, int index) {
+                  return SizeTransition(
+                    sizeFactor: animation,
+                    child: snapshot.value['userData']['email'].toString() ==
+                            store.state.emailModel!.email.toString()
+                        ? SizedBox(
+                            width: 0,
+                            height: 0,
+                          )
+                        : Padding(
+                            padding: const EdgeInsets.all(10.0),
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                    context,
+                                    CupertinoPageRoute(
+                                        builder: (context) => Chat(
+                                              chatId:
+                                                  "${snapshot.value['userData']['localId']}",
+                                              emailId:
+                                                  '${snapshot.value['userData']['email']}'
+                                                      .toString()
+                                                      .replaceAll(
+                                                          "@gmail.com", ""),
+                                              fcmToken:
+                                                  "${snapshot.value['fcmToken']['fcmToken']}",
+                                            )));
+                              },
+                              child: Container(
+                                color: Colors.amber[100],
+                                child: Column(
+                                  children: [
+                                    ListTile(
+                                        title: Text(
+                                      '${snapshot.value['userData']['email']}',
+                                    )),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                  );
+                },
+              ),
+            ],
           ),
         ),
       ),
