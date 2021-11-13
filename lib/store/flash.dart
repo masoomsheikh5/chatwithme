@@ -1,109 +1,32 @@
 import 'dart:async';
-
 import 'package:chatwithme/chatRoom.dart';
 import 'package:chatwithme/login.dart';
 import 'package:chatwithme/main.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:overlay_support/overlay_support.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/store/actions.dart' as action;
 import 'package:flutter/material.dart';
+import '../../main.dart';
 
-class FlashScereen extends StatefulWidget {
-  FlashScereen({Key? key}) : super(key: key);
-
+class SplashScreen extends StatefulWidget {
   @override
-  _FlashScereenState createState() => _FlashScereenState();
+  VideoState createState() => VideoState();
 }
 
-class _FlashScereenState extends State<FlashScereen> {
-  ////notification setup
-
-  // late final FirebaseMessaging _messaging;
-  // late int _totalNotifications;
-  // PushNotification? _notificationInfo;
-
-  // void registerNotification() async {
-  //   await Firebase.initializeApp();
-  //   _messaging = FirebaseMessaging.instance;
-
-  //   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-  //   NotificationSettings settings = await _messaging.requestPermission(
-  //     alert: true,
-  //     badge: true,
-  //     provisional: false,
-  //     sound: true,
-  //   );
-  //   _messaging.getToken().then((token) async {
-  //     SharedPreferences prefs = await SharedPreferences.getInstance();
-  //     prefs.setString("fcmToken", token.toString());
-  //     print(["fcmToken", token]); // Print the Token in Console
-  //   });
-
-  //   if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-  //     print('User granted permission');
-
-  //     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-  //       print(
-  //           'Message title: ${message.notification?.title}, body: ${message.notification?.body}, data: ${message.data}');
-
-  //       // Parse the message received
-  //       PushNotification notification = PushNotification(
-  //         title: message.notification?.title,
-  //         body: message.notification?.body,
-  //         dataTitle: message.data['title'],
-  //         dataBody: message.data['body'],
-  //       );
-
-  //       setState(() {
-  //         _notificationInfo = notification;
-  //         _totalNotifications++;
-  //       });
-
-  //       if (_notificationInfo != null) {
-  //         // For displaying the notification as an overlay
-  //         showSimpleNotification(
-  //           Text(_notificationInfo!.title!),
-  //           leading: NotificationBadge(totalNotifications: _totalNotifications),
-  //           subtitle: Text(_notificationInfo!.body!),
-  //           background: Colors.cyan.shade700,
-  //           duration: Duration(seconds: 2),
-  //         );
-  //       }
-  //     });
-  //   } else {
-  //     print('User declined or has not accepted permission');
-  //   }
-  // }
-
-  // // For handling notification when the app is in terminated state
-  // checkForInitialMessage() async {
-  //   await Firebase.initializeApp();
-  //   RemoteMessage? initialMessage =
-  //       await FirebaseMessaging.instance.getInitialMessage();
-
-  //   if (initialMessage != null) {
-  //     PushNotification notification = PushNotification(
-  //       title: initialMessage.notification?.title,
-  //       body: initialMessage.notification?.body,
-  //       dataTitle: initialMessage.data['title'],
-  //       dataBody: initialMessage.data['body'],
-  //     );
-
-  //     setState(() {
-  //       _notificationInfo = notification;
-  //       _totalNotifications++;
-  //     });
-  //   }
-  // }
+class VideoState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  var _visible = true;
+  AnimationController? animationController;
+  Animation<double>? animation;
 
   @override
   void initState() {
-    Timer(Duration(seconds: 3), () {
-      if (store.state.emailModel != null) {
-        print(["store.state.emailModel", store.state.emailModel]);
+    super.initState();
+    Timer(Duration(seconds: 3), () async {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+
+      String? userDetais = prefs.getString("userLoginToken");
+      if (userDetais != null) {
+        print(["userLoginToken", userDetais]);
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (context) => Chatroom()));
       } else {
@@ -111,34 +34,41 @@ class _FlashScereenState extends State<FlashScereen> {
             context, MaterialPageRoute(builder: (context) => Login()));
       }
     });
-    // _totalNotifications = 0;
-    // registerNotification();
-    // checkForInitialMessage();
+    animationController = new AnimationController(
+        vsync: this, duration: new Duration(seconds: 1));
+    animation = new CurvedAnimation(
+        parent: animationController!, curve: Curves.easeOut);
 
-    // For handling notification when the app is in background
-    // but not terminated
-    // FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    //   PushNotification notification = PushNotification(
-    //     title: message.notification?.title,
-    //     body: message.notification?.body,
-    //     dataTitle: message.data['title'],
-    //     dataBody: message.data['body'],
-    //   );
+    animation!.addListener(() => this.setState(() {}));
+    animationController!.forward();
 
-    //   setState(() {
-    //     _notificationInfo = notification;
-    //     _totalNotifications++;
-    //   });
-    // });
-
-    super.initState();
+    setState(() {
+      _visible = !_visible;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Image(image: AssetImage("assets/image/chat_with_me_logo.png")),
+      body: Stack(
+        children: <Widget>[
+          Container(
+            height: MediaQuery.of(context).size.height * 2,
+            // decoration: BoxDecoration(
+            //     image: DecorationImage(
+            //         image: AssetImage("assets/bg.png"), fit: BoxFit.fitHeight)),
+          ),
+          Center(
+            child: Hero(
+              tag: "logo",
+              child: new Image.asset(
+                'assets/image/chat_with_me_logo.png',
+                width: animation!.value * 250,
+                height: animation!.value * 250,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

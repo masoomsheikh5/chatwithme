@@ -132,7 +132,7 @@ class _ChatState extends State<Chat> {
           ),
           Icon(Icons.more_vert)
         ],
-        backgroundColor: Color(0xff00bfa5),
+        backgroundColor: Color(0xff31705e),
         leadingWidth: 70,
         leading: Container(
           child: Row(
@@ -335,7 +335,7 @@ class _ChatState extends State<Chat> {
           Container(
             width: MediaQuery.of(context).size.width * 2 / 10,
             child: CircleAvatar(
-              backgroundColor: Color(0xff00bfa5),
+              backgroundColor: Color(0xff31705e),
               radius: 25,
               child: IconButton(
                   onPressed: () async {

@@ -38,7 +38,7 @@ ThunkAction<AppState> loginUser(context, fcmToken, email, pass) {
           .child("fcmToken")
           .set(fcmTtoken);
       store.dispatch(storeUser(context, response.body));
-      // store.dispatch(EmailModel.fromJson(newResponse));
+      store.dispatch(EmailModel.fromJson(newResponse));
       Future.delayed(Duration(seconds: 1), () {
         // store.dispatch(fetchUserProfile(context));
       });
@@ -108,7 +108,7 @@ ThunkAction<AppState> ragisterUser(context, fcmToken, email, pass) {
           .child("fcmToken")
           .set(fcmTtoken);
       store.dispatch(storeUser(context, response.body));
-      // store.dispatch(EmailModel.fromJson(newResponse));
+      store.dispatch(EmailModel.fromJson(newResponse));
       Future.delayed(Duration(seconds: 1), () {
         // store.dispatch(fetchUserProfile(context));
       });
@@ -125,11 +125,11 @@ ThunkAction<AppState> storeUser(context, res) {
   return (Store<AppState> store) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setString("userLoginToken", res);
-    String? userLoginToken = prefs.getString('userLoginToken');
-    // print(["userLoginToken", userLoginToken]);
-    var loginData = jsonDecode(userLoginToken!);
-    store.dispatch(EmailModel.fromJson(loginData));
-    print(["loginData", loginData]);
+    // String? userLoginToken = prefs.getString('userLoginToken');
+    // // print(["userLoginToken", userLoginToken]);
+    // var loginData = jsonDecode(userLoginToken!);
+    // store.dispatch(EmailModel.fromJson(loginData));
+    // print(["loginData", loginData]);
   };
 }
 
@@ -137,10 +137,19 @@ ThunkAction<AppState> storeUser(context, res) {
 ThunkAction<AppState> logout(context) {
   print('logout api running');
   return (Store<AppState> store) async {
+    final FirebaseDatabase database = FirebaseDatabase();
+    database
+        .reference()
+        .child('users')
+        .child(store.state.emailModel!.localId)
+        .child("fcmToken")
+        .remove();
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.remove("userLoginToken");
+    await prefs.remove("userLoginToken");
     store.dispatch(AppState.initial());
-    Navigator.pushReplacement(
-        context, MaterialPageRoute(builder: (BuildContext context) => Login()));
+    Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (BuildContext context) => Login()),
+        (route) => false);
   };
 }

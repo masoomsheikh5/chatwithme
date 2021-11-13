@@ -1,6 +1,8 @@
 // ignore_for_file: file_names, prefer_const_constructors_in_immutables
 
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:chatwithme/chat.dart';
 import 'package:chatwithme/main.dart';
@@ -11,7 +13,11 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_database/ui/firebase_animated_list.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:overlay_support/overlay_support.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'store/actions.dart';
@@ -24,6 +30,10 @@ class Chatroom extends StatefulWidget {
 }
 
 class _ChatroomState extends State<Chatroom> {
+  File? _image;
+  final picker = ImagePicker();
+  bool _isCamera = false;
+  String? _imageBase64;
   final FirebaseDatabase database = FirebaseDatabase();
   late DatabaseReference _users;
   late StreamSubscription<Event> _userSubscription;
@@ -152,13 +162,90 @@ class _ChatroomState extends State<Chatroom> {
     _userSubscription.cancel();
   }
 
+  Future<void> _deleteCacheDir() async {
+    Directory tempDir = await getTemporaryDirectory();
+
+    if (tempDir.existsSync()) {
+      tempDir.deleteSync(recursive: true);
+    }
+    print("_deleteCacheDir is runing");
+  }
+
+  Future<void> _deleteAppDir() async {
+    Directory appDocDir = await getApplicationDocumentsDirectory();
+
+    if (appDocDir.existsSync()) {
+      appDocDir.deleteSync(recursive: true);
+    }
+    print("_deleteAppDir is runing");
+  }
+
+  Future getImage() async {
+    Navigator.pop(context);
+    _isCamera
+        ? await Permission.camera.request()
+        : await Permission.photos.request();
+    var status = _isCamera
+        ? await Permission.camera.status
+        : await Permission.photos.status;
+    print(status);
+    if (status.isGranted || status.isLimited) {
+      final pickedFile = await picker.pickImage(
+          source: _isCamera ? ImageSource.camera : ImageSource.gallery,
+          imageQuality: 50,
+          maxHeight: 200,
+          maxWidth: 200);
+      List<int> imageBytes = await pickedFile!.readAsBytes();
+      print(imageBytes);
+      String base64Image = base64Encode(imageBytes);
+      print(base64Image);
+      setState(() {
+        _image = File(pickedFile.path);
+        _imageBase64 = base64Image;
+      });
+    }
+  }
+
+  _showBottomSheetModal() {
+    showModalBottomSheet(
+        context: context,
+        builder: (context) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: new Icon(Icons.photo),
+                title: new Text('Gallery'),
+                onTap: () {
+                  setState(() {
+                    _isCamera = false;
+                  });
+                  getImage();
+                },
+              ),
+              ListTile(
+                leading: new Icon(Icons.camera),
+                title: new Text('Camera'),
+                onTap: () {
+                  setState(() {
+                    _isCamera = true;
+                  });
+                  getImage();
+                },
+              ),
+            ],
+          );
+        });
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
         child: Scaffold(
       bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: Colors.red,
-        unselectedItemColor: Colors.grey.shade600,
+        backgroundColor: Color(0xff31705e),
+        selectedItemColor: Color(0xff96e0cb),
+        unselectedItemColor: Colors.white,
         selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600),
         unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w600),
         type: BottomNavigationBarType.fixed,
@@ -169,27 +256,129 @@ class _ChatroomState extends State<Chatroom> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.group_work),
-            label: "Channels",
+            label: "Status",
           ),
           BottomNavigationBarItem(
             icon: Icon(
-              Icons.account_box,
+              Icons.search,
             ),
-            label: "Profile",
+            label: "Search",
           ),
         ],
       ),
-      appBar: AppBar(),
+      drawer: Drawer(
+        child: Container(
+          height: MediaQuery.of(context).size.height,
+          width: MediaQuery.of(context).size.width,
+          // color: Colors.amber,
+          child: Column(
+            children: [
+              Container(
+                height: 280,
+                width: MediaQuery.of(context).size.width,
+                color: Color(0xff31705e),
+                child: Container(
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: 10,
+                      ),
+                      selectPhoto(context),
+                      // CircleAvatar(
+                      //   radius: 80,
+                      //   backgroundColor: Colors.amber,
+                      // ),
+                      SizedBox(
+                        height: 20,
+                      ),
+                      Container(
+                        child: Text("data"),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Divider(
+              //   color: Colors.black,
+              //   thickness: 18,
+              // ),
+              Card(
+                child: ListTile(
+                  leading: Icon(
+                    Icons.account_box,
+                    size: 35,
+                  ),
+                  title: Text("Profile"),
+                  trailing: Icon(Icons.arrow_forward),
+                ),
+              ),
+              Card(
+                child: ListTile(
+                  leading: Icon(Icons.settings),
+                  title: Text("Setting"),
+                  trailing: Icon(Icons.arrow_forward),
+                ),
+              ),
+              Card(
+                child: ListTile(
+                  leading: Icon(Icons.storage),
+                  title: Text("Stroge"),
+                  trailing: Icon(Icons.arrow_forward),
+                ),
+              ),
+              Card(
+                child: ListTile(
+                  leading: Icon(Icons.group_add),
+                  title: Text("New Group"),
+                  trailing: Icon(Icons.arrow_forward),
+                ),
+              ),
+              Card(
+                child: ListTile(
+                  leading: Icon(Icons.settings),
+                  title: Text("Download setting"),
+                  trailing: Icon(Icons.arrow_forward),
+                ),
+              ),
+              // Divider(
+              //   color: Colors.black,
+              // )
+            ],
+          ),
+        ),
+        // child: ElevatedButton(
+        //     style: ElevatedButton.styleFrom(
+        //       shape: CircleBorder(side: BorderSide(width: 1.0)),
+        //     ),
+        //     onPressed: () async {
+        //       _deleteCacheDir();
+        //       _deleteAppDir();
+        //       store.dispatch(logout(context));
+        //     },
+        //     child: Text("logOut")),
+      ),
+      appBar: AppBar(
+        actions: [
+          SizedBox(
+            width: 30,
+          )
+        ],
+        title: Center(
+          child: Text(
+            "Chat With Me",
+            style: TextStyle(
+                color: Color(0xffd3ede6),
+                fontSize: 25,
+                fontWeight: FontWeight.bold),
+          ),
+        ),
+        backgroundColor: Color(0xff31705e),
+      ),
       body: SingleChildScrollView(
         child: Container(
           width: MediaQuery.of(context).size.width,
           child: Column(
             children: [
-              ElevatedButton(
-                  onPressed: () {
-                    store.dispatch(logout(context));
-                  },
-                  child: Text("logOut")),
               FirebaseAnimatedList(
                 query: _users,
                 physics: NeverScrollableScrollPhysics(),
@@ -206,35 +395,94 @@ class _ChatroomState extends State<Chatroom> {
                           )
                         : Padding(
                             padding: const EdgeInsets.all(10.0),
-                            child: InkWell(
-                              onTap: () {
-                                Navigator.push(
-                                    context,
-                                    CupertinoPageRoute(
-                                        builder: (context) => Chat(
-                                              chatId:
-                                                  "${snapshot.value['userData']['localId']}",
-                                              emailId:
-                                                  '${snapshot.value['userData']['email']}'
-                                                      .toString()
-                                                      .replaceAll(
-                                                          "@gmail.com", ""),
-                                              fcmToken:
-                                                  "${snapshot.value['fcmToken']['fcmToken']}",
-                                            )));
-                              },
-                              child: Container(
-                                color: Colors.amber[100],
-                                child: Column(
-                                  children: [
-                                    ListTile(
-                                        title: Text(
-                                      '${snapshot.value['userData']['email']}',
-                                    )),
-                                  ],
-                                ),
-                              ),
-                            ),
+                            child: snapshot.value['fcmToken'] == null
+                                ? InkWell(
+                                    onTap: () {
+                                      Navigator.push(
+                                          context,
+                                          CupertinoPageRoute(
+                                              builder: (context) => Chat(
+                                                    chatId:
+                                                        "${snapshot.value['userData']['localId']}",
+                                                    emailId:
+                                                        '${snapshot.value['userData']['email']}'
+                                                            .toString()
+                                                            .replaceAll(
+                                                                "@gmail.com",
+                                                                ""),
+                                                    fcmToken: "1",
+                                                  )));
+                                    },
+                                    child: Container(
+                                      // color: Colors.amber[100],
+                                      child: Column(
+                                        children: [
+                                          ListTile(
+                                              leading: CircleAvatar(
+                                                radius: 30,
+
+                                                backgroundImage: NetworkImage(
+                                                  "https://wallpapershome.com/images/pages/pic_h/21486.jpg",
+                                                ),
+                                                // child: Image.network(
+                                                //   "https://wallpapershome.com/images/pages/pic_h/21486.jpg",
+                                                //   fit: BoxFit.fill,
+                                                // ),
+                                              ),
+                                              title: Text(
+                                                '${snapshot.value['userData']['email']}',
+                                              )),
+                                          Divider(
+                                            color: Colors.black,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                : InkWell(
+                                    onTap: () {
+                                      Navigator.push(
+                                          context,
+                                          CupertinoPageRoute(
+                                              builder: (context) => Chat(
+                                                    chatId:
+                                                        "${snapshot.value['userData']['localId']}",
+                                                    emailId:
+                                                        '${snapshot.value['userData']['email']}'
+                                                            .toString()
+                                                            .replaceAll(
+                                                                "@gmail.com",
+                                                                ""),
+                                                    fcmToken:
+                                                        "${snapshot.value['fcmToken']['fcmToken']}",
+                                                  )));
+                                    },
+                                    child: Container(
+                                      // color: Colors.amber[100],
+                                      child: Column(
+                                        children: [
+                                          ListTile(
+                                              leading: CircleAvatar(
+                                                radius: 30,
+
+                                                backgroundImage: NetworkImage(
+                                                  "https://wallpapershome.com/images/pages/pic_h/21486.jpg",
+                                                ),
+                                                // child: Image.network(
+                                                //   "https://wallpapershome.com/images/pages/pic_h/21486.jpg",
+                                                //   fit: BoxFit.fill,
+                                                // ),
+                                              ),
+                                              title: Text(
+                                                '${snapshot.value['userData']['email']}',
+                                              )),
+                                          Divider(
+                                            color: Colors.black,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                           ),
                   );
                 },
@@ -244,5 +492,34 @@ class _ChatroomState extends State<Chatroom> {
         ),
       ),
     ));
+  }
+
+  selectPhoto(BuildContext context) {
+    return Stack(
+      children: [
+        InkWell(
+          onTap: () {
+            _showBottomSheetModal();
+          },
+          child: CircleAvatar(
+            backgroundImage: _image == null
+                ? AssetImage("assets/icons/avatar.png") as ImageProvider
+                : FileImage(_image!),
+            radius: 57,
+          ),
+        ),
+        Positioned(
+          bottom: 20,
+          right: 5,
+          child: CircleAvatar(
+            child: Icon(
+              Icons.edit,
+              size: 20,
+            ),
+            radius: 15,
+          ),
+        ),
+      ],
+    );
   }
 }

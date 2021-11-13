@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:chatwithme/list.dart';
 import 'package:chatwithme/login.dart';
+import 'package:chatwithme/model/emailModel.dart';
 import 'package:chatwithme/store/appState.dart';
 import 'package:chatwithme/store/flash.dart';
 import 'package:chatwithme/store/reducer.dart';
@@ -30,8 +33,30 @@ Future<void> main() async {
   runApp(StoreProvider(store: store, child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   MyApp({Key? key}) : super(key: key);
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    restoreUser();
+  }
+
+  restoreUser() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    String? userDetais = prefs.getString("userLoginToken");
+
+    if (userDetais != null) {
+      store.dispatch(EmailModel.fromJson(jsonDecode(userDetais)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return OverlaySupport(
@@ -40,7 +65,7 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.blue,
         ),
-        home: FlashScereen(),
+        home: SplashScreen(),
       ),
     );
   }
