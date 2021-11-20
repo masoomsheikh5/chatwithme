@@ -3,9 +3,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:chatwithme/chat.dart';
 import 'package:chatwithme/main.dart';
+import 'package:chatwithme/profilepic.dart';
+import 'package:chatwithme/username.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
@@ -13,8 +16,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_database/ui/firebase_animated_list.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/rendering.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:overlay_support/overlay_support.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -30,7 +35,9 @@ class Chatroom extends StatefulWidget {
 }
 
 class _ChatroomState extends State<Chatroom> {
+  late DatabaseReference _profilePicPush;
   File? _image;
+
   final picker = ImagePicker();
   bool _isCamera = false;
   String? _imageBase64;
@@ -38,6 +45,7 @@ class _ChatroomState extends State<Chatroom> {
   late DatabaseReference _users;
   late StreamSubscription<Event> _userSubscription;
   List _userlist = [];
+  var userName;
 
   ////notification setup
 
@@ -120,6 +128,23 @@ class _ChatroomState extends State<Chatroom> {
     }
   }
 
+  var lkid = store.state.emailModel!.localId.toString();
+  //  _sendPic() async {
+  //   SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   String? usernameId = prefs.getString('usernameId');
+  //   _profilePicPush = database
+  //       .reference()
+  //       .child('users')
+  //       .child(store.state.emailModel!.localId.toString())
+  //       .child('userProfile');
+  //   _profilePicPush.push().set(<Map>{b
+  //     {
+  //       "name": usernameId,
+  //       "profilePic": _imageBase64,
+  //     },
+  //   });
+  // }
+
   @override
   void initState() {
     _totalNotifications = 0;
@@ -143,6 +168,7 @@ class _ChatroomState extends State<Chatroom> {
     });
 
     super.initState();
+    final FirebaseDatabase database = FirebaseDatabase();
 
     _users = database.reference().child('users');
     if (!kIsWeb) {
@@ -191,17 +217,30 @@ class _ChatroomState extends State<Chatroom> {
     print(status);
     if (status.isGranted || status.isLimited) {
       final pickedFile = await picker.pickImage(
-          source: _isCamera ? ImageSource.camera : ImageSource.gallery,
-          imageQuality: 50,
-          maxHeight: 200,
-          maxWidth: 200);
+        source: _isCamera ? ImageSource.camera : ImageSource.gallery,
+        // imageQuality: 50,
+        // maxHeight: 200,
+        // maxWidth: 200
+      );
       List<int> imageBytes = await pickedFile!.readAsBytes();
-      print(imageBytes);
+      // print(imageBytes);
       String base64Image = base64Encode(imageBytes);
-      print(base64Image);
+      // print(["baaassseee pohoto", base64Image]);
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      var usernameId = prefs.getString('usernameId');
       setState(() {
         _image = File(pickedFile.path);
         _imageBase64 = base64Image;
+        var username = <String, String>{
+          "name": usernameId.toString(),
+          "profilePic": _imageBase64.toString(),
+        };
+        database
+            .reference()
+            .child('users')
+            .child(store.state.emailModel!.localId.toString())
+            .child('userProfile')
+            .set(username);
       });
     }
   }
@@ -267,83 +306,141 @@ class _ChatroomState extends State<Chatroom> {
         ],
       ),
       drawer: Drawer(
-        child: Container(
-          height: MediaQuery.of(context).size.height,
-          width: MediaQuery.of(context).size.width,
-          // color: Colors.amber,
-          child: Column(
-            children: [
-              Container(
-                height: 280,
-                width: MediaQuery.of(context).size.width,
-                color: Color(0xff31705e),
-                child: Container(
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        height: 10,
-                      ),
-                      selectPhoto(context),
-                      // CircleAvatar(
-                      //   radius: 80,
-                      //   backgroundColor: Colors.amber,
-                      // ),
-                      SizedBox(
-                        height: 20,
-                      ),
-                      Container(
-                        child: Text("data"),
-                      ),
-                    ],
+        child: SingleChildScrollView(
+          child: Container(
+            // height: MediaQuery.of(context).size.height,
+            width: MediaQuery.of(context).size.width,
+            // color: Colors.amber,
+            child: Column(
+              children: [
+                // Container(
+                //   height: MediaQuery.of(context).size.height,
+                //   width: MediaQuery.of(context).size.height,
+                // ),
+                FirebaseAnimatedList(
+                    query: _users,
+                    physics: NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    itemBuilder: (BuildContext context, DataSnapshot snapshot,
+                        Animation<double> animation, int index) {
+                      var _pic = snapshot.value['userProfile']['profilePic']
+                          .toString();
+                      Uint8List bytes = Base64Codec().decode(_pic);
+                      return Container(
+                        child: snapshot.value['userData']['email'].toString() ==
+                                store.state.emailModel!.email.toString()
+                            ? Container(
+                                height: 280,
+                                width: MediaQuery.of(context).size.width,
+                                color: Color(0xff31705e),
+                                child: Container(
+                                  child: Column(
+                                    children: [
+                                      SizedBox(
+                                        height: 10,
+                                      ),
+                                      selectPhoto(context, snapshot, bytes),
+                                      SizedBox(
+                                        height: 20,
+                                      ),
+                                      Container(
+                                        child: Text(
+                                            "${snapshot.value['userProfile']['name']}"),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : SizedBox(
+                                width: 0,
+                                height: 0,
+                              ),
+                      );
+                    }),
+
+                // Divider(
+                //   color: Colors.black,
+                //   thickness: 18,
+                // // ),
+                // ElevatedButton(
+                //     onPressed: () async {
+                //       if (_imageBase64 != null) {
+                //         // _profilePicPush = database
+                //         //     .reference()
+                //         //     .child('users')
+                //         //     .child(store.state.emailModel!.localId.toString())
+                //         //     .child('userProfile').s;
+                //         SharedPreferences prefs =
+                //             await SharedPreferences.getInstance();
+                //         var usernameId = prefs.getString('usernameId');
+
+                //         var username = <String, String>{
+                //           "name": usernameId.toString(),
+                //           "profilePic": _imageBase64.toString(),
+                //         };
+                //         database
+                //             .reference()
+                //             .child('users')
+                //             .child(store.state.emailModel!.localId.toString())
+                //             .child('userProfile')
+                //             .set(username);
+                //       }
+                //       ;
+                //     },
+                //     child: Text("upload")),
+                Card(
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.account_box,
+                      size: 35,
+                    ),
+                    title: Text("Profile"),
+                    trailing: Icon(Icons.arrow_forward),
                   ),
                 ),
-              ),
-              // Divider(
-              //   color: Colors.black,
-              //   thickness: 18,
-              // ),
-              Card(
-                child: ListTile(
-                  leading: Icon(
-                    Icons.account_box,
-                    size: 35,
+                Card(
+                  child: ListTile(
+                    leading: Icon(Icons.settings),
+                    title: Text("Setting"),
+                    trailing: Icon(Icons.arrow_forward),
                   ),
-                  title: Text("Profile"),
-                  trailing: Icon(Icons.arrow_forward),
                 ),
-              ),
-              Card(
-                child: ListTile(
-                  leading: Icon(Icons.settings),
-                  title: Text("Setting"),
-                  trailing: Icon(Icons.arrow_forward),
+                Card(
+                  child: ListTile(
+                    leading: Icon(Icons.storage),
+                    title: Text("Stroge"),
+                    trailing: Icon(Icons.arrow_forward),
+                  ),
                 ),
-              ),
-              Card(
-                child: ListTile(
-                  leading: Icon(Icons.storage),
-                  title: Text("Stroge"),
-                  trailing: Icon(Icons.arrow_forward),
+                Card(
+                  child: ListTile(
+                    leading: Icon(Icons.group_add),
+                    title: Text("New Group"),
+                    trailing: Icon(Icons.arrow_forward),
+                  ),
                 ),
-              ),
-              Card(
-                child: ListTile(
-                  leading: Icon(Icons.group_add),
-                  title: Text("New Group"),
-                  trailing: Icon(Icons.arrow_forward),
+                Card(
+                  child: ListTile(
+                    leading: Icon(Icons.settings),
+                    title: Text("Download setting"),
+                    trailing: Icon(Icons.arrow_forward),
+                  ),
                 ),
-              ),
-              Card(
-                child: ListTile(
-                  leading: Icon(Icons.settings),
-                  title: Text("Download setting"),
-                  trailing: Icon(Icons.arrow_forward),
-                ),
-              ),
-              // Divider(
-              //   color: Colors.black,
-              // )
-            ],
+                // Divider(
+                //   color: Colors.black,
+                // )
+                ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        // shape: CircleBorder(side: BorderSide(width: 1.0)),
+                        ),
+                    onPressed: () async {
+                      _deleteCacheDir();
+                      _deleteAppDir();
+                      store.dispatch(logout(context));
+                    },
+                    child: Text("logOut")),
+              ],
+            ),
           ),
         ),
         // child: ElevatedButton(
@@ -385,6 +482,48 @@ class _ChatroomState extends State<Chatroom> {
                 shrinkWrap: true,
                 itemBuilder: (BuildContext context, DataSnapshot snapshot,
                     Animation<double> animation, int index) {
+                  print(["profilePic", snapshot.value['userData']['email']]);
+                  var _pic =
+                      snapshot.value['userProfile']['profilePic'].toString();
+                  Uint8List bytes = Base64Codec().decode(_pic);
+                  String lastMsg = "";
+                  String time = "";
+
+                  var msg2 = snapshot.value["messages"];
+
+                  if (msg2 != null) {
+                    var msg = snapshot.value["messages"]
+                        [store.state.emailModel!.localId.toString()];
+                    // ["AlastMsg"];
+                    print(["emailbbbbbbR", store.state.emailModel!.localId]);
+                    if (msg != null) {
+                      lastMsg =
+                          '${snapshot.value["messages"][store.state.emailModel!.localId.toString()]["lastMsged"]["lastMsg"]}';
+                      DateTime lastTime = DateTime.parse(snapshot
+                          .value["messages"]
+                              [store.state.emailModel!.localId.toString()]
+                              ["lastMsged"]["time"]
+                          .toString());
+                      DateTime now = DateTime.now();
+                      DateTime yesterday = now.subtract(Duration(days: 1));
+                      DateTime justNow =
+                          DateTime.now().subtract(Duration(minutes: 1));
+                      if (!lastTime.difference(justNow).isNegative) {
+                        time = "Just Now";
+                      } else if (lastTime.day == now.day &&
+                          lastTime.month == now.month &&
+                          lastTime.year == now.year) {
+                        time = "${DateFormat('hh:mm a').format(lastTime)}";
+                      } else if (lastTime.day == yesterday.day &&
+                          lastTime.month == yesterday.month &&
+                          lastTime.year == yesterday.year) {
+                        time = "Yesterday";
+                      } else {
+                        time = '${DateFormat('yMd').format(lastTime)}';
+                      }
+                    }
+                  }
+
                   return SizeTransition(
                     sizeFactor: animation,
                     child: snapshot.value['userData']['email'].toString() ==
@@ -394,7 +533,7 @@ class _ChatroomState extends State<Chatroom> {
                             height: 0,
                           )
                         : Padding(
-                            padding: const EdgeInsets.all(10.0),
+                            padding: const EdgeInsets.all(0.0),
                             child: snapshot.value['fcmToken'] == null
                                 ? InkWell(
                                     onTap: () {
@@ -411,6 +550,9 @@ class _ChatroomState extends State<Chatroom> {
                                                                 "@gmail.com",
                                                                 ""),
                                                     fcmToken: "1",
+                                                    nameId:
+                                                        '${snapshot.value['userProfile']['name']}',
+                                                    chatPic: bytes,
                                                   )));
                                     },
                                     child: Container(
@@ -418,21 +560,35 @@ class _ChatroomState extends State<Chatroom> {
                                       child: Column(
                                         children: [
                                           ListTile(
-                                              leading: CircleAvatar(
-                                                radius: 30,
-
-                                                backgroundImage: NetworkImage(
-                                                  "https://wallpapershome.com/images/pages/pic_h/21486.jpg",
+                                              trailing: Container(
+                                                child: Column(
+                                                  children: [
+                                                    Text(time),
+                                                  ],
                                                 ),
-                                                // child: Image.network(
-                                                //   "https://wallpapershome.com/images/pages/pic_h/21486.jpg",
-                                                //   fit: BoxFit.fill,
-                                                // ),
+                                              ),
+                                              subtitle: Text(lastMsg),
+                                              leading: InkWell(
+                                                onTap: () {
+                                                  Navigator.push(
+                                                      context,
+                                                      CupertinoPageRoute(
+                                                          builder: (context) =>
+                                                              Profilepic(
+                                                                profilePic:
+                                                                    bytes,
+                                                              )));
+                                                },
+                                                child: CircleAvatar(
+                                                    radius: 30,
+                                                    backgroundImage:
+                                                        MemoryImage(bytes)),
                                               ),
                                               title: Text(
-                                                '${snapshot.value['userData']['email']}',
+                                                '${snapshot.value['userProfile']['name']}',
                                               )),
                                           Divider(
+                                            height: 1,
                                             color: Colors.black,
                                           ),
                                         ],
@@ -455,6 +611,9 @@ class _ChatroomState extends State<Chatroom> {
                                                                 ""),
                                                     fcmToken:
                                                         "${snapshot.value['fcmToken']['fcmToken']}",
+                                                    nameId:
+                                                        '${snapshot.value['userProfile']['name']}',
+                                                    chatPic: bytes,
                                                   )));
                                     },
                                     child: Container(
@@ -462,21 +621,41 @@ class _ChatroomState extends State<Chatroom> {
                                       child: Column(
                                         children: [
                                           ListTile(
-                                              leading: CircleAvatar(
-                                                radius: 30,
-
-                                                backgroundImage: NetworkImage(
-                                                  "https://wallpapershome.com/images/pages/pic_h/21486.jpg",
+                                              subtitle: Text(lastMsg),
+                                              trailing: Container(
+                                                child: Column(
+                                                  children: [
+                                                    Text(time),
+                                                  ],
                                                 ),
-                                                // child: Image.network(
-                                                //   "https://wallpapershome.com/images/pages/pic_h/21486.jpg",
-                                                //   fit: BoxFit.fill,
-                                                // ),
+                                              ),
+                                              leading: InkWell(
+                                                onTap: () {
+                                                  Navigator.push(
+                                                      context,
+                                                      CupertinoPageRoute(
+                                                          builder: (context) =>
+                                                              Profilepic(
+                                                                profilePic:
+                                                                    bytes,
+                                                              )));
+                                                },
+                                                child: CircleAvatar(
+                                                  radius: 30,
+
+                                                  backgroundImage:
+                                                      MemoryImage(bytes),
+                                                  // child: Image.network(
+                                                  //   "https://wallpapershome.com/images/pages/pic_h/21486.jpg",
+                                                  //   fit: BoxFit.fill,
+                                                  // ),
+                                                ),
                                               ),
                                               title: Text(
-                                                '${snapshot.value['userData']['email']}',
+                                                '${snapshot.value['userProfile']['name']}',
                                               )),
                                           Divider(
+                                            height: 1,
                                             color: Colors.black,
                                           ),
                                         ],
@@ -494,29 +673,42 @@ class _ChatroomState extends State<Chatroom> {
     ));
   }
 
-  selectPhoto(BuildContext context) {
+  selectPhoto(BuildContext context, DataSnapshot snapshot, Uint8List bytes) {
     return Stack(
       children: [
         InkWell(
           onTap: () {
-            _showBottomSheetModal();
+            Navigator.push(
+                context,
+                CupertinoPageRoute(
+                    builder: (context) => Profilepic(
+                          profilePic: bytes,
+                        )));
           },
-          child: CircleAvatar(
-            backgroundImage: _image == null
-                ? AssetImage("assets/icons/avatar.png") as ImageProvider
-                : FileImage(_image!),
-            radius: 57,
+          child: Hero(
+            tag: "click",
+            child: CircleAvatar(
+              backgroundImage: _image == null
+                  ? MemoryImage(bytes) as ImageProvider
+                  : FileImage(_image!),
+              radius: 57,
+            ),
           ),
         ),
         Positioned(
           bottom: 20,
           right: 5,
-          child: CircleAvatar(
-            child: Icon(
-              Icons.edit,
-              size: 20,
+          child: InkWell(
+            onTap: () async {
+              _showBottomSheetModal();
+            },
+            child: CircleAvatar(
+              child: Icon(
+                Icons.edit,
+                size: 20,
+              ),
+              radius: 15,
             ),
-            radius: 15,
           ),
         ),
       ],

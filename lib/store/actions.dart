@@ -4,6 +4,7 @@ import 'package:chatwithme/chatRoom.dart';
 import 'package:chatwithme/login.dart';
 import 'package:chatwithme/main.dart';
 import 'package:chatwithme/model/emailModel.dart';
+import 'package:chatwithme/username.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../../store/appState.dart';
 import 'package:flutter/material.dart';
@@ -51,7 +52,7 @@ ThunkAction<AppState> loginUser(context, fcmToken, email, pass) {
   };
 }
 
-ThunkAction<AppState> msgnoti(fcmToken, msgBody, msgTitle) {
+ThunkAction<AppState> msgnoti(fcmToken, msgTitle, msgBody) {
   return (Store<AppState> store) async {
     var url = Uri.parse("https://fcm.googleapis.com/fcm/send");
     Map<String, String> headers = {
@@ -114,7 +115,7 @@ ThunkAction<AppState> ragisterUser(context, fcmToken, email, pass) {
       });
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => Chatroom()),
+        MaterialPageRoute(builder: (context) => UserName()),
       );
     } else {}
   };

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -16,10 +18,14 @@ class Chat extends StatefulWidget {
   final String? chatId;
   final String? emailId;
   final String? fcmToken;
+  final String? nameId;
+  final Uint8List chatPic;
   Chat(
       {Key? key,
       required this.fcmToken,
+      required this.nameId,
       required this.chatId,
+      required this.chatPic,
       required this.emailId})
       : super(key: key);
   @override
@@ -28,8 +34,12 @@ class Chat extends StatefulWidget {
 
 class _ChatState extends State<Chat> {
   late DatabaseReference _messagesRef;
+  late DatabaseReference _lastMessagesRef;
   late DatabaseReference _messagesRef2;
+  late DatabaseReference _lastMessagesRef2;
   late StreamSubscription<Event> _messagesSubscription;
+  String mainTime = "";
+  String dayTime = "";
   List _chats = [];
 
   bool _anchorToBottom = false;
@@ -38,6 +48,7 @@ class _ChatState extends State<Chat> {
   final TextEditingController _textController = TextEditingController();
   String lkId =
       store.state.emailModel!.email.toString().replaceAll("@gmail.com", "");
+  // String? _pic = widget.chatPic;
 
   @override
   void initState() {
@@ -49,13 +60,31 @@ class _ChatState extends State<Chat> {
         .child('users')
         .child(store.state.emailModel!.localId.toString())
         .child('messages')
-        .child(widget.chatId.toString());
+        .child(widget.chatId.toString())
+        .child('messages');
+    //last msg mine
+    _lastMessagesRef = database
+        .reference()
+        .child('users')
+        .child(store.state.emailModel!.localId.toString())
+        .child('messages')
+        .child(widget.chatId.toString())
+        .child('lastMsged');
     _messagesRef2 = database
         .reference()
         .child('users')
         .child(widget.chatId.toString())
         .child('messages')
-        .child(store.state.emailModel!.localId.toString());
+        .child(store.state.emailModel!.localId.toString())
+        .child('messages');
+    //last msg other
+    _lastMessagesRef2 = database
+        .reference()
+        .child('users')
+        .child(widget.chatId.toString())
+        .child('messages')
+        .child(store.state.emailModel!.localId.toString())
+        .child('lastMsged');
     database.setLoggingEnabled(true);
 
     if (!kIsWeb) {
@@ -65,7 +94,7 @@ class _ChatState extends State<Chat> {
 
     _messagesSubscription =
         _messagesRef.limitToLast(20).onChildAdded.listen((Event event) {
-      print('Child added: ${event.snapshot.value}');
+      print('Child added hello: ${event.snapshot.value}');
       // setState(() {
       _chats.add(event.snapshot.value);
       // });
@@ -85,6 +114,15 @@ class _ChatState extends State<Chat> {
   }
 
   Future<void> _sendMSG() async {
+    await _lastMessagesRef.set(<String, String>{
+      "lastMsg": "${_textController.text.trim()}",
+      "time": "${DateTime.now()}",
+    });
+    await _lastMessagesRef2.set(<String, String>{
+      "lastMsg": "${_textController.text.trim()}",
+      "time": "${DateTime.now()}",
+    });
+
     await _messagesRef.push().set(<String, Map>{
       lkId: {
         "message": "${_textController.text.trim()}",
@@ -117,6 +155,7 @@ class _ChatState extends State<Chat> {
 
   @override
   Widget build(BuildContext context) {
+    // Uint8List bytes = Base64Codec().decode(widget.chatPic);
     return SafeArea(
         child: Scaffold(
       appBar: AppBar(
@@ -146,13 +185,12 @@ class _ChatState extends State<Chat> {
                     color: Colors.white,
                   )),
               CircleAvatar(
-                backgroundImage: NetworkImage(
-                    "https://www.inpixio.com/wp-content/uploads/2019/11/4B-Edit-Colors-before.jpg"),
+                backgroundImage: MemoryImage(widget.chatPic),
               ),
             ],
           ),
         ),
-        title: Text(widget.emailId.toString()),
+        title: Text(widget.nameId.toString()),
         // centerTitle: true,
       ),
       body: Container(
@@ -191,11 +229,35 @@ class _ChatState extends State<Chat> {
                               : DateTime.parse(
                                   snapshot.value[lkId]['time'].toString());
                           String date = "${DateFormat('hh:mm a').format(time)}";
-                          // DateTime time = snapshot.value['masoom'] == null
-                          //     ? DateTime.now()
-                          //     : DateTime.parse(
-                          //         snapshot.value['aaryan']['time'].toString());
-                          // String date = "${DateFormat('hh:mm a').format(time)}";
+
+                          ///timeday
+                          DateTime now = DateTime.now();
+                          DateTime yesterday = now.subtract(Duration(days: 1));
+                          DateTime justNow =
+                              DateTime.now().subtract(Duration(minutes: 1));
+
+                          String time2;
+
+                          if (time.day == now.day &&
+                              time.month == now.month &&
+                              time.year == now.year) {
+                            time2 = "Today";
+                            // "${DateFormat('hh:mm a').format(time)}";
+                          } else if (time.day == yesterday.day &&
+                              time.month == yesterday.month &&
+                              time.year == yesterday.year) {
+                            time2 = "Yesterday";
+                          } else {
+                            time2 = '${DateFormat('yMd').format(time)}';
+                          }
+
+                          if (mainTime != time2) {
+                            mainTime = time2;
+                            dayTime = time2;
+                          } else if (mainTime == time2) {
+                            dayTime = "";
+                          }
+
                           return SizeTransition(
                             sizeFactor: animation,
                             child: InkWell(
@@ -206,87 +268,119 @@ class _ChatState extends State<Chat> {
                                   children: [
                                     !snapshot.value.containsKey(
                                             widget.emailId.toString())
-                                        ? Align(
-                                            alignment: Alignment.topRight,
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.end,
-                                              children: [
-                                                Card(
-                                                  color: Color(0xffdcf8c6),
-                                                  child: Container(
-                                                      padding:
-                                                          EdgeInsets.symmetric(
-                                                              horizontal: 20,
-                                                              vertical: 6),
-                                                      margin: EdgeInsets.only(
-                                                          right: 20),
-                                                      child: Column(
-                                                        // mainAxisAlignment:
-                                                        //     MainAxisAlignment.center,
-                                                        children: [
-                                                          Text(
-                                                            "${snapshot.value[lkId]['message']}",
-                                                            style: TextStyle(
-                                                                fontSize: 20),
-                                                          ),
-                                                        ],
-                                                      )),
-                                                ),
-                                                Text(
-                                                  date,
-                                                  style:
-                                                      TextStyle(fontSize: 10),
-                                                )
-                                              ],
-                                            ),
-                                          )
-                                        : Align(
-                                            alignment: Alignment.topLeft,
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Card(
-                                                  child: Container(
-                                                      padding:
-                                                          EdgeInsets.symmetric(
-                                                              horizontal: 20,
-                                                              vertical: 6),
-                                                      margin: EdgeInsets.only(
-                                                          right: 20),
-                                                      child: Column(
-                                                        // mainAxisAlignment:
-                                                        //     MainAxisAlignment.center,
-                                                        children: [
-                                                          Text(
-                                                            "${snapshot.value[widget.emailId]['message']}",
-                                                            style: TextStyle(
-                                                                fontSize: 20),
-                                                          ),
-                                                        ],
-                                                      )),
-                                                ),
-                                                Text(
-                                                  date,
-                                                  style:
-                                                      TextStyle(fontSize: 10),
-                                                )
-                                              ],
-                                            ),
-                                            // Card(
-                                            //   child: Container(
-                                            //       padding: EdgeInsets.symmetric(
-                                            //           horizontal: 20, vertical: 6),
-                                            //       margin: EdgeInsets.only(
-                                            //           right: 20, left: 20),
-                                            //       // color: Colors.red,
+                                        ? Column(
+                                            children: [
+                                              dayTime == ""
+                                                  ? SizedBox()
+                                                  : Card(
+                                                      child: Container(
+                                                      margin:
+                                                          EdgeInsets.all(10),
+                                                      child: Text(
+                                                        dayTime,
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold),
+                                                      ),
+                                                    )),
+                                              // Row(
+                                              //   mainAxisAlignment:MainAxisAlignment.center,
 
-                                            //       child: Text(
-                                            //         "${snapshot.value['aaryan']}",
-                                            //         style: TextStyle(fontSize: 20),
-                                            //       )),
-                                            // )
+                                              // ),
+                                              Align(
+                                                alignment: Alignment.topRight,
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.end,
+                                                  children: [
+                                                    Card(
+                                                      color: Color(0xffdcf8c6),
+                                                      child: Container(
+                                                          padding: EdgeInsets
+                                                              .symmetric(
+                                                                  horizontal:
+                                                                      20,
+                                                                  vertical: 6),
+                                                          margin:
+                                                              EdgeInsets.only(
+                                                                  right: 20),
+                                                          child: Column(
+                                                            // mainAxisAlignment:
+                                                            //     MainAxisAlignment.center,
+                                                            children: [
+                                                              Text(
+                                                                "${snapshot.value[lkId]['message']}",
+                                                                style: TextStyle(
+                                                                    fontSize:
+                                                                        20),
+                                                              ),
+                                                            ],
+                                                          )),
+                                                    ),
+                                                    Text(
+                                                      date,
+                                                      style: TextStyle(
+                                                          fontSize: 10),
+                                                    )
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : Column(
+                                            children: [
+                                              dayTime == ""
+                                                  ? SizedBox()
+                                                  : Card(
+                                                      child: Container(
+                                                      margin: EdgeInsets.all(8),
+                                                      child: Text(
+                                                        dayTime,
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold),
+                                                      ),
+                                                    )),
+                                              Align(
+                                                alignment: Alignment.topLeft,
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Card(
+                                                      child: Container(
+                                                          padding: EdgeInsets
+                                                              .symmetric(
+                                                                  horizontal:
+                                                                      20,
+                                                                  vertical: 6),
+                                                          margin:
+                                                              EdgeInsets.only(
+                                                                  right: 20),
+                                                          child: Column(
+                                                            // mainAxisAlignment:
+                                                            //     MainAxisAlignment.center,
+                                                            children: [
+                                                              Text(
+                                                                "${snapshot.value[widget.emailId]['message']}",
+                                                                style: TextStyle(
+                                                                    fontSize:
+                                                                        20),
+                                                              ),
+                                                            ],
+                                                          )),
+                                                    ),
+                                                    Text(
+                                                      date,
+                                                      style: TextStyle(
+                                                          fontSize: 10),
+                                                    )
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
                                           )
                                   ]),
                             ),
@@ -339,8 +433,11 @@ class _ChatState extends State<Chat> {
               radius: 25,
               child: IconButton(
                   onPressed: () async {
+                    SharedPreferences prefs =
+                        await SharedPreferences.getInstance();
+                    String? usernameId = prefs.getString('usernameId');
                     store.dispatch(action.msgnoti(
-                        widget.fcmToken, lkId, _textController.text));
+                        widget.fcmToken, usernameId, _textController.text));
                     _sendMSG();
                   },
                   icon: Icon(

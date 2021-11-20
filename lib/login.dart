@@ -1,4 +1,5 @@
 import 'package:chatwithme/main.dart';
+import 'package:chatwithme/username.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -234,7 +235,7 @@ class _LoginState extends State<Login> {
                                       Pass.text.trim()));
                                 }
                               },
-                              child: Text("Sign up"))
+                              child: Text("Sign up")),
                         ],
                       ))
                 ],
